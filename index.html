@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIF to TGS Converter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 50px;
+    }
+    form {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      display: inline-block;
+    }
+    input[type="file"] {
+      margin: 10px 0;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>GIF to TGS Converter</h1>
+  <p>Upload a GIF file to convert it to a Telegram Sticker (.TGS)</p>
+
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label for="gifFile">Select GIF file:</label><br>
+    <input type="file" id="gifFile" name="gifFile" accept="image/gif" required><br><br>
+    <button type="submit">Convert to TGS</button>
+  </form>
+
+  <p id="status"></p>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const statusText = document.getElementById('status');
+
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      statusText.textContent = "Converting your GIF...";
+
+      // URL for EZGIF's GIF to WebP tool
+      const ezgifUrl = 'https://ezgif.com/gif-to-webp';
+
+      // Step 1: Send the GIF to EZGIF's web tool (POST request)
+      fetch(ezgifUrl, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => response.text())  // Get the HTML response
+      .then(html => {
+        // Step 2: Parse the HTML response to find the WebP URL
+        const webpFileUrl = parseWebPUrlFromHTML(html);
+
+        if (webpFileUrl) {
+          // Step 3: Fetch the WebP file from the extracted URL
+          fetch(webpFileUrl)
+            .then(res => res.blob())
+            .then(blob => {
+              // Step 4: Convert WebP to TGS using JavaScript (webp-to-tgs function assumed)
+              const fileReader = new FileReader();
+              fileReader.onload = function () {
+                const arrayBuffer = fileReader.result;
+                const tgsBlob = webpToTgs(arrayBuffer);  // Use webp-to-tgs client-side conversion
+
+                // Step 5: Trigger TGS file download
+                const url = URL.createObjectURL(tgsBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'sticker.tgs';
+                a.click();
+
+                statusText.textContent = "Conversion complete! Downloading your TGS file...";
+              };
+              fileReader.readAsArrayBuffer(blob);
+            })
+            .catch(error => {
+              console.error('Error converting WebP to TGS:', error);
+              statusText.textContent = "There was an error during conversion.";
+            });
+        } else {
+          statusText.textContent = "Failed to convert GIF.";
+        }
+      })
+      .catch(error => {
+        console.error('Error during conversion:', error);
+        statusText.textContent = "There was an error during conversion.";
+      });
+    });
+
+    // Helper function to extract WebP file URL from the HTML response
+    function parseWebPUrlFromHTML(html) {
+      // Use regex to extract WebP URL from the HTML response
+      const regex = /"http:\/\/(.*?\.webp)"/;
+      const match = html.match(regex);
+      return match ? 'http://' + match[1] : null;
+    }
+  </script>
+
+</body>
+</html>
